@@ -1,0 +1,42 @@
+{
+  "name": "babelfish-node",
+  "version": "1.0.0",
+  "description": "Realtime call translation with Nexmo + Microsoft Cognitive Services",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint *.js",
+    "lint-fix": "eslint --fix *.js",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "nexmo",
+    "microsoft",
+    "cognitive",
+    "services",
+    "realtime",
+    "translation"
+  ],
+  "author": "Michael Heap <m@michaelheap.com>",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^6.2.0",
+    "express": "^4.16.4",
+    "express-ws": "^3.0.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.4.1",
+    "nexmo": "^2.4.1",
+    "nunjucks": "^3.2.0",
+    "request": "^2.88.0",
+    "waveheader": "0.0.2",
+    "winston": "^3.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^4.19.1",
+    "eslint-config-prettier": "^2.10.0",
+    "eslint-plugin-prettier": "^2.7.0",
+    "prettier": "^1.16.4"
+  },
+  "engines": {
+    "node": "10.x"
+  }
+}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>Babelfish</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/css/volta.min.css" />
+
+</head>
+<body>
+    <div class="Vlt-callout Vlt-callout--shoutout">
+        <i></i>
+        <div class="Vlt-callout__content">
+            <h4>Call {{number}}</h4>
+            <p>Babelfish: Nexmo and Microsoft Cognitive Services</p>
+        </div>
+    </div>
+
+    <div class="Vlt-grid Vlt-grid--narrow" style="padding:0 30px">
+        <div class="Vlt-col">
+            <div class="Vlt-form__element Vlt-form__element--big">
+                <div class="Vlt-input">
+                    <input type="text" placeholder="14155550100" id="lang-number"/>
+                    <label for="lang-number">Number</label>
+                </div>
+            </div>
+        </div>
+        <div class="Vlt-col">
+            <div class="Vlt-form__element Vlt-form__element--big">
+                <div class="Vlt-input">
+                    <input type="text" placeholder="en-US" id="lang-from"/>
+                    <label for="lang-from">From</label>
+                </div>
+            </div>
+        </div>
+        <div class="Vlt-col">
+            <div class="Vlt-form__element Vlt-form__element--big">
+                <div class="Vlt-composite">
+                    <div class="Vlt-input">
+                        <input type="text" placeholder="es" id="lang-to">
+                        <label for="lang-to">To</label>
+                    </div>
+                    <div class="Vlt-composite__append">
+                        <button class="Vlt-btn" id="set-lang">Set Language</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="Vlt-grid Vlt-grid--narrow" style="padding:0 30px">
+        <div class="Vlt-col">
+            <div class="Vlt-form__element Vlt-form__element--big">
+                <div class="Vlt-composite">
+                    <div class="Vlt-input">
+                        <input type="text" placeholder=" " id="call-number" name="number">
+                        <label for="call-number">Number to call</label>
+                    </div>
+                    <div class="Vlt-composite__append">
+                        <button class="Vlt-btn" id="make-call">Call Me</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="Vlt-text-separator">
+        <span>Calls</span>
+    </div>
+
+    <div id="languages" style="padding: 5px;">
+        <script id="language-template" type="text/x-handlebars-template">
+            <div data-number="{{user}}" class="Vlt-badge Vlt-badge--{{colour}} Vlt-badge--large" style="margin: 3px 0; border: 2px solid red;">
+                {{fromFlag}} / {{toFlag}}
+                {{maskedUser}}
+                <button class="Vlt-badge__dismiss"></button>
+            </div>
+        </script>
+    </div>
+
+    <div class="Vlt-text-separator">
+        <span>Translations</span>
+    </div>
+    <div class="Vlt-table" style="padding: 0 30px;">
+        <table>
+            <thead>
+                <th>User</th>
+                <th>Original</th>
+                <th>Translated</th>
+            </thead>
+            <tbody id="transcripts">
+                <script id="transcript-template" type="text/x-handlebars-template">
+                    <tr>
+                    <td>{{maskedUser}}</td>
+                    <td>{{fromFlag}} {{text}}</td>
+                    <td>{{toFlag}} {{translated}}</td>
+                </tr>
+                </script>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="/handlebars.min.js"></script>
+    <script src="/jquery.min.js"></script>
+    <script>
+        var hostname = window.location.host;
+var proto =  (window.location.protocol == "https:") ? 'wss://' : 'ws://';
+
+function connect() {
+    const ws = new WebSocket(proto + hostname + "/page");
+    window.ws = ws;
+    ws.onopen = function() {
+        console.log("CONNECTED");
+    };
+    ws.onmessage = function(event) {
+        var data = JSON.parse(event.data);
+        if (data.translated) {
+            eventRecieved(data);
+        } else {
+            console.log(data);
+            if (data.action == "add") {
+                clientAdded(data);
+            } else if (data.action == "connect") {
+                let b = $(".Vlt-badge[data-number='"+data.user+"']");
+                if (!b.length) {
+                    clientAdded(data);
+                    b = $(".Vlt-badge[data-number='"+data.user+"']");
+                }
+                b.css("border", "2px solid lime");
+            } else if (data.action == "disconnect") {
+                console.log("DISCONNECTING");
+                let b = $(".Vlt-badge[data-number='"+data.user+"']");
+                b.css("border", "2px solid red");
+            } else {
+                clientRemoved(data.user);
+            }
+        }
+    };
+}
+
+let colours = [
+    'blue', 'green', 'yellow', 'red', 'grey'
+];
+
+function clientAdded(data) {
+    numberAdded(data.user, data.fromLang, data.toLang);
+}
+
+function clientRemoved(num) {
+    $("div[data-number='"+num+"']").remove();
+}
+
+function numberAdded(num, fromLang, toLang){
+    let current = $(".Vlt-badge").length;
+    let idx = current % colours.length;
+
+    let data = {};
+    data.user = num;
+    data.maskedUser = "********"+ num.slice(9,13);
+    data.fromFlag = toFlag(fromLang);
+    data.toFlag = toFlag(toLang);
+    data.colour = colours[idx];
+    console.log(data);
+    var source = $("#language-template").html();
+    var template = Handlebars.compile(source);
+    var html = template(data);
+    $("#languages").append(html);
+}
+
+function eventRecieved(data){
+    data.maskedUser = "********"+data.user.slice(9,13);
+    data.fromFlag = toFlag(data.fromLang);
+    data.toFlag = toFlag(data.toLang);
+    console.log(data);
+    var source = $("#transcript-template").html();
+    var template = Handlebars.compile(source);
+    var html = template(data);
+    $("#transcripts").append(html);
+}
+
+function toFlag(lang) {
+    const parts = lang.split("-");
+    const c = parts[1] ? parts[1] : parts[0];
+    return c.toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0)+127397) );
+}
+
+function send(m) {
+    ws.send(JSON.stringify(m));
+}
+
+connect();
+
+$(document).ready(function(){
+
+    const users = {{initial_data}};
+    const DEFAULT_NUMBER = "{{default_number}}";
+
+    $("#call-number").val(DEFAULT_NUMBER);
+
+    users.forEach(function(u) {
+        numberAdded(u[0], u[1], u[2]);
+        if (u[3]) {
+          $(".Vlt-badge[data-number='"+u[0]+"']").css("border", "2px solid lime");
+        }
+    });
+
+    $("#languages").on("click", ".Vlt-badge__dismiss", function() {
+        const b = $(this).parent(".Vlt-badge");
+        send({"action": "remove-language", "user": b.data("number")});
+        b.remove();
+    });
+
+    $("#make-call").on("click", function(e) {
+        let cn = $("#call-number");
+        let num = cn.val();
+        console.log("MAKING A CALL TO " + num);
+        cn.val(DEFAULT_NUMBER);
+
+        $.ajax({
+            type: "POST",
+            contentType: "application/json",
+            url: '/call',
+            data: JSON.stringify({"number":num}),
+        });
+        return false;
+    });
+
+    $("#set-lang").on("click", function(e) {
+        const f = $("#lang-from");
+        const t= $("#lang-to");
+        const n= $("#lang-number");
+
+        (function(u, f, t){
+            send({"action": "remove-language", "user": u});
+            setTimeout(function(){
+                send({"action": "add-language", "user": u, "from": f, "to": t});
+            }, 100);
+        })(n.val(), f.val(), t.val());
+
+        f.val("");
+        t.val("");
+        n.val("");
+        return false;
+    });
+});
+    </script>
+</body>
+</html>

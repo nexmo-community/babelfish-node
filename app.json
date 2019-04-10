@@ -1,0 +1,14 @@
+{
+  "env": {
+    "NEXMO_APPLICATION_ID": {},
+    "NEXMO_PRIVATE_KEY": {},
+    "NEXMO_NUMBER": {},
+    "MICROSOFT_KEY": {},
+    "MICROSOFT_SERVICE_REGION": {}
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
