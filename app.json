@@ -1,12 +1,35 @@
 {
   "env": {
-    "NEXMO_APPLICATION_ID": {},
-    "NEXMO_PRIVATE_KEY": {},
-    "NEXMO_NUMBER": {},
+    "CREATE_NEXMO_APP": {
+      "description": "Should the application automatically create a Nexmo application and purchase a new phone number",
+      "value": "yes"
+    },
+    "NAME": {
+      "description": "The Heroku app name, enter it exactly the same as you have above",
+      "required" : true
+    },
+    "API_KEY": {
+      "description": "Your Nexmo API Key",
+      "value": "",
+      "required" : true
+    },
+    "API_SECRET": {
+      "description": "Your Nexmo API Secret",
+      "value": "",
+      "required" : true
+    },
+    "CC": {
+      "description": "Comma separated ISO 3361 Country Codes where you want numbers to be purchased eg, US, GB, ES etc.",
+      "value": "US,GB",
+      "required" : true
+    },
     "MICROSOFT_KEY": {},
     "MICROSOFT_SERVICE_REGION": {}
   },
   "buildpacks": [
+    {
+      "url": "https://github.com/nexmo-community/heroku-buildpack-voice.git#allow-multiple-numbers"
+    },
     {
       "url": "heroku/nodejs"
     }

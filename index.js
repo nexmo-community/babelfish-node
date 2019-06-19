@@ -13,8 +13,8 @@ require("dotenv").config();
 const nexmo = new Nexmo({
   apiKey: "a", // Not used, but required by the lib
   apiSecret: "b",
-  applicationId: process.env.NEXMO_APPLICATION_ID,
-  privateKey: process.env.NEXMO_PRIVATE_KEY
+  applicationId: process.env.APP_ID,
+  privateKey: process.env.PRIVATE_KEY
 });
 
 const logger = winston.createLogger({
@@ -58,7 +58,7 @@ app.get("/", (req, res) => {
 
   fs.readFile("views/index.html", function(err, html) {
     html = html.toString(); // Convert from buffer to string
-    html = html.replace("{{number}}", process.env.NEXMO_NUMBER); // Replace the number
+    html = html.replace("{{number}}", process.env.MY_LVN.replace(",", ", ")); // Replace the number
     html = html.replace("{{initial_data}}", JSON.stringify(initial_data));
     html = html.replace("{{default_number}}", process.env.YOUR_NUMBER || "");
     return res.send(html);
@@ -66,6 +66,12 @@ app.get("/", (req, res) => {
 });
 
 app.post("/call", (req, res) => {
+
+  // Work out which number to call from based on prefix, defaulting
+  // to the first in the list
+
+  const fromNumber = calculateLongestPrefixNumber(process.env.MY_LVN, req.body.number);
+
   nexmo.calls.create(
     {
       to: [
@@ -76,9 +82,9 @@ app.post("/call", (req, res) => {
       ],
       from: {
         type: "phone",
-        number: process.env.NEXMO_NUMBER
+        number: fromNumber
       },
-      answer_url: ["http://" + req.headers.host + "/webhooks/answer"]
+      answer_url: ["http://" + req.headers.host + "/ncco"]
     },
     function(err, data) {
       if (err) {
@@ -92,20 +98,20 @@ app.post("/call", (req, res) => {
   );
 });
 
-app.post("/webhooks/event", (req, res) => {
+app.post("/event", (req, res) => {
   if (process.env.SHOW_EVENTS) {
     logger.debug("Webhook Event", req.body);
   }
   return res.json({ success: true });
 });
 
-app.get("/webhooks/answer", (req, res) => {
+app.get("/ncco", (req, res) => {
   let number =
-    req.query.from == process.env.NEXMO_NUMBER ? req.query.to : req.query.from;
+    process.env.MY_LVN.split(',').indexOf(req.query.from) != -1 ? req.query.to : req.query.from;
   return res.json([
     {
       action: "connect",
-      eventUrl: ["http://" + req.headers.host + "/webhooks/event"],
+      eventUrl: ["http://" + req.headers.host + "/event"],
       endpoint: [
         {
           type: "websocket",
@@ -225,28 +231,28 @@ function sendTranslation(text, translated, fromLang, toLang, user) {
 
 function playTextToSpeech(leg, text, voice) {
   try {
-      const jwt = Nexmo.generateJwt(Buffer.from(process.env.NEXMO_PRIVATE_KEY), {
-          application_id: process.env.NEXMO_APPLICATION_ID
-      });
+    const jwt = Nexmo.generateJwt(Buffer.from(process.env.PRIVATE_KEY), {
+      application_id: process.env.APP_ID
+    });
 
-      request.put(
-          {
-              url: `https://api.nexmo.com/v1/calls/${leg}/talk`,
-              headers: {
-                  Authorization: `Bearer ${jwt}`
-              },
-              json: { text, voice_name: voice }
-          },
-          function(err, data) {
-              if (err) {
-                  logger.error(err);
-                  return;
-              }
-          }
-      );
-      logger.debug(`Playing '${text}' to ${leg} as ${voice}`);
+    request.put(
+      {
+        url: `https://api.nexmo.com/v1/calls/${leg}/talk`,
+        headers: {
+          Authorization: `Bearer ${jwt}`
+        },
+        json: { text, voice_name: voice }
+      },
+      function(err, data) {
+        if (err) {
+          logger.error(err);
+          return;
+        }
+      }
+    );
+    logger.debug(`Playing '${text}' to ${leg} as ${voice}`);
   } catch (e) {
-      logger.error(`Error generating JWT`);
+    logger.error(`Error generating JWT`);
   }
 }
 
@@ -262,4 +268,35 @@ function getVoice(language) {
   }
 
   return "Russell";
+}
+
+function calculateLongestPrefixNumber(lvns, destination) {
+  let allLvns = lvns.split(",");
+
+  if (allLvns.length == 1) {
+    return allLvns[0];
+  }
+
+  let available = allLvns;
+  for (let prefixLength = 1; prefixLength < 5; prefixLength++){
+    let destinationPrefix = destination.substr(0, prefixLength);
+    let matchingPrefixes = [];
+    for (let v of available) {
+      let lvnPrefix = v.substr(0, prefixLength);
+      if (lvnPrefix == destinationPrefix) {
+        matchingPrefixes.push(v);
+      }
+    }
+    available = matchingPrefixes;
+    if (available.length == 1) {
+      return available[0];
+    }
+
+    if (available.length == 0) {
+      return allLvns[0]
+    }
+  }
+
+  // If after 5 prefix checks we have multiple LVNs, let's just use the first one
+  return available[0];
 }
