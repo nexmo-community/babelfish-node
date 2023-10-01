@@ -22,7 +22,7 @@
   "dependencies": {
     "dotenv": "^6.2.0",
     "express": "^4.16.4",
-    "express-ws": "^3.0.0",
+    "express-ws": "^4.0.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.4.1",
     "nexmo": "^2.4.1",
     "nunjucks": "^3.2.0",
